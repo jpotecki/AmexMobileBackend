@@ -1,25 +1,26 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Lib (someFunc) where
+module Lib (someFunc, readInt') where
 
 import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
 import Data.ByteString          (isInfixOf)
-import Data.Text                (Text, unpack, toUpper, stripSuffix)
-import Data.Text.Read           (decimal)
+import Data.Text                (Text, unpack, toUpper, stripSuffix, strip)
+import Data.Text.Read           (decimal, Reader(..))
 import Data.Text.Encoding.Error (lenientDecode)
 import Data.Text.Lazy.Encoding  (decodeUtf8With)
 import Network.HTTP.Client      (Response)
 import Network.Wreq             (responseBody, get)
 import Text.Taggy               (Node)
 import Text.Taggy.Lens          (html, elements, children, contents, allNamed, attributed)
-import Data.Maybe               (catMaybes)
+import Data.Maybe               (catMaybes, isJust, fromJust)
 import Data.List                (union)
-import Data.Either.Combinators  (rightToMaybe)
+import Debug.Trace
 
 data Store = Store { sname   :: Text 
-                   , sphone  :: Int 
-                   , szip    :: Text 
+                   , sphone  :: Text 
+                   , szip    :: Int 
+                   , scity   :: Text
                    , saddress:: Text 
                    , sdist   :: Int 
                    } deriving (Show, Eq)
@@ -89,21 +90,19 @@ instance Show Business where
 -- "http://akzeptanz.amex-services.de/suche.php?zip_code=12000&zip_hidden=&&within_a_distance_of=0&cityBerlin&city_selected=Berlin&agreement_code=&agreement_code_md5=&industry_code=&industry_code_md5=&firma=Mc&firma_pattern=&page=0"
 
 sampleURL :: Req
-sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 10 BeginWi Leasure "Mc"
+sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 10 BeginWi Food "Mc"
 
 
 getResults :: Req -> IO [Store]
-getResults url = do 
-    print $ show url
-    content1 <- get $ show url
-    content2 <- get $ show . nextpage $ url                   
-    let res1    = catMaybes . stores' $ content1
-        res2    = catMaybes . stores' $ content2
+getResults req@Req{..} = do 
+    content1 <- get $ show req
+    content2 <- get $ show . nextpage $ req                  
+    let res1    = filterDist distance $ catMaybes . stores' $ content1
+        res2    = filterDist distance $ catMaybes . stores' $ content2
         res'    = res1 `union` res2
-    print res'
-    if length res1 == length res'
+    if length res1 == 0 || length res1 == length res'
         then return res1
-        else do res3 <- getResults $ (nextpage . nextpage) url
+        else do res3 <- getResults $ (nextpage . nextpage) req
                 return $ res' `union` res3
 
   where nextpage :: Req -> Req
@@ -113,7 +112,7 @@ getResults url = do
 filterDist :: Int -> [Store] -> [Store]
 filterDist dist = filter (lessDist dist)
   where lessDist :: Int -> Store -> Bool
-        lessDist dist Store{}
+        lessDist dist Store{..} = sdist <= dist
     
 
 
@@ -121,31 +120,33 @@ table :: [Node] -> Maybe Store
 table row = do  name    <- row ^? ix 0 . elements . contents
                 phone   <- row ^? ix 1 . contents
                 zip     <- row ^? ix 2 . contents
-                address <- row ^? ix 3 . contents
-                dist    <- row ^? ix 4 . contents
-                let dist' = stripSuffix "km" dist
-                    zip ' = rightToMaybe $ decimal zip :: Int
-                 in if 
-                    return $ Store name phone zip address 
+                city    <- row ^? ix 3 . contents
+                address <- row ^? ix 3 . elements . contents
+                dist    <- row ^? ix 3 . elements . elements. contents
+                let dist' = stripSuffix "km" (strip dist) >>= \x -> readInt' $ strip x
+                    zip'  = readInt' $ strip zip
+                 in if isJust dist' && isJust zip' 
+                    then return $ Store name phone (fromJust zip') city address (fromJust dist')
+                    else  Nothing
+                -- trace (show $ row ^? ix 3 . elements . elements. contents) $ return $ Store name phone 1 address 1 
 
-
+readInt' :: Text -> Maybe Int
+readInt' txt =
+    let read = decimal txt
+     in case read of
+         Right (i, _ ) -> Just i
+         Left _        -> Nothing
 
 stores' :: Response ByteString -> [Maybe Store]
 stores' = toListOf
             $ responseBody . to (decodeUtf8With lenientDecode)
             . html . allNamed (only "tr" ) . attributed (ix "class" . only "item")  . children . to table
 
-moreResults :: Response ByteString -> Bool
-moreResults response =
-    let body = response ^. responseBody
-     in "weiteren Ergebnissen" `isInfixOf` (toStrict body)
-
-
 main :: IO ()
 -- main = do content <- get $ show sampleURL
 --           mapM_ print (catMaybes . stores'  $ content)
 main = do res <- getResults sampleURL
-          mapM_ (print . show) res
+          mapM_ (print) res
 
 
 

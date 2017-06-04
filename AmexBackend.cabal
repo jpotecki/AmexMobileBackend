@@ -27,6 +27,7 @@ library
                      , http-client
                      , wreq
                      , taggy
+                     , either
   default-language:    Haskell2010
 
 executable AmexBackend-exe
