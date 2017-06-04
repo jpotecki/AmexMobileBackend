@@ -5,7 +5,7 @@ module Lib (someFunc, readInt') where
 import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
 import Data.ByteString          (isInfixOf)
-import Data.Text                (Text, unpack, toUpper, stripSuffix, strip)
+import Data.Text                (Text, unpack, toUpper, stripSuffix, strip, replace)
 import Data.Text.Read           (decimal, Reader(..))
 import Data.Text.Encoding.Error (lenientDecode)
 import Data.Text.Lazy.Encoding  (decodeUtf8With)
@@ -14,7 +14,7 @@ import Network.Wreq             (responseBody, get)
 import Text.Taggy               (Node)
 import Text.Taggy.Lens          (html, elements, children, contents, allNamed, attributed)
 import Data.Maybe               (catMaybes, isJust, fromJust)
-import Data.List                (union)
+import Data.List                (union, (\\))
 import Debug.Trace
 
 data Store = Store { sname   :: Text 
@@ -90,24 +90,26 @@ instance Show Business where
 -- "http://akzeptanz.amex-services.de/suche.php?zip_code=12000&zip_hidden=&&within_a_distance_of=0&cityBerlin&city_selected=Berlin&agreement_code=&agreement_code_md5=&industry_code=&industry_code_md5=&firma=Mc&firma_pattern=&page=0"
 
 sampleURL :: Req
-sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 10 BeginWi Food "Mc"
+sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
 
 
-getResults :: Req -> IO [Store]
-getResults req@Req{..} = do 
-    content1 <- get $ show req
-    content2 <- get $ show . nextpage $ req                  
-    let res1    = filterDist distance $ catMaybes . stores' $ content1
-        res2    = filterDist distance $ catMaybes . stores' $ content2
-        res'    = res1 `union` res2
-    if length res1 == 0 || length res1 == length res'
-        then return res1
-        else do res3 <- getResults $ (nextpage . nextpage) req
-                return $ res' `union` res3
-
-  where nextpage :: Req -> Req
+getResult :: [Store] -> Req -> ([Store] -> IO a) -> IO [Store]
+getResult res1 req@Req{..} f = do
+    content  <- get $ show req
+    let res2 =  filterDist distance $ catMaybes . stores' $ content
+        diff =  res2 \\ res1
+        uni' = res1 `union` res2
+    f diff
+    if length diff == 0
+        then return $ uni'
+        else getResult uni' (nextpage req) f
+  where 
+        nextpage :: Req -> Req
         nextpage x@Req{..} = x { page = succ page }
+        
+        
 
+                                  
 
 filterDist :: Int -> [Store] -> [Store]
 filterDist dist = filter (lessDist dist)
@@ -126,9 +128,8 @@ table row = do  name    <- row ^? ix 0 . elements . contents
                 let dist' = stripSuffix "km" (strip dist) >>= \x -> readInt' $ strip x
                     zip'  = readInt' $ strip zip
                  in if isJust dist' && isJust zip' 
-                    then return $ Store name phone (fromJust zip') city address (fromJust dist')
+                    then return $ Store name (replace " " "" phone) (fromJust zip') city address (fromJust dist')
                     else  Nothing
-                -- trace (show $ row ^? ix 3 . elements . elements. contents) $ return $ Store name phone 1 address 1 
 
 readInt' :: Text -> Maybe Int
 readInt' txt =
@@ -143,11 +144,10 @@ stores' = toListOf
             . html . allNamed (only "tr" ) . attributed (ix "class" . only "item")  . children . to table
 
 main :: IO ()
--- main = do content <- get $ show sampleURL
---           mapM_ print (catMaybes . stores'  $ content)
-main = do res <- getResults sampleURL
-          mapM_ (print) res
-
-
-
+main = do res <- getResult [] sampleURL $ f
+          print $ length res
+  where
+      f :: [Store] -> IO ()
+      f = mapM_ print
+        
 someFunc = main
