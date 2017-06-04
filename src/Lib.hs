@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
 
-module Lib (someFunc, readInt') where
+module Lib where
 
 import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
@@ -16,6 +16,8 @@ import Text.Taggy.Lens          (html, elements, children, contents, allNamed, a
 import Data.Maybe               (catMaybes, isJust, fromJust)
 import Data.List                (union, (\\))
 import Debug.Trace
+import GHC.Generics hiding (to)
+import Data.Aeson
 
 data Store = Store { sname   :: Text 
                    , sphone  :: Text 
@@ -23,9 +25,15 @@ data Store = Store { sname   :: Text
                    , scity   :: Text
                    , saddress:: Text 
                    , sdist   :: Int 
-                   } deriving (Show, Eq)
+                   } deriving (Eq, Generic, Show)
+
+instance ToJSON Store where
+    toEncoding = genericToEncoding defaultOptions
+instance FromJSON Store
+
 
 type Stores = [Store]
+
 
 data Req = Req  { zip           :: Int
                 , city          :: Text
@@ -35,11 +43,20 @@ data Req = Req  { zip           :: Int
                 , firma_pattern :: FPattern
                 , business      :: Business
                 , name          :: Text
-                } 
+                } deriving (Eq, Generic)
+
+instance ToJSON Req where
+    toEncoding = genericToEncoding defaultOptions
+instance FromJSON Req
 
 
 data FPattern = Contain 
               | BeginWi 
+              deriving (Eq, Generic)
+
+
+instance ToJSON FPattern
+instance FromJSON FPattern
 
 
 instance Show FPattern where
@@ -69,14 +86,20 @@ instance Show Req where
            , "&agreement_code_md5="
            , show business
            ] 
-        
+
+
 data Business = All
               | CarRent
               | Hotel
               | Food
               | Leasure
+              | Travel
+              | Gas
+              | Other 
+              deriving (Eq, Generic)
 
-
+instance ToJSON Business
+instance FromJSON Business
 
 
 instance Show Business where
@@ -84,10 +107,12 @@ instance Show Business where
     show CarRent = "60753bc681d752341358cdbcc49c008b"
     show Hotel   = "9cd6d03105117ff67d7108419cfef5a1"  
     show Food    = "00e276643d45f57c18187dafe623b0c6" 
-    show Leasure = "ea4e56623bab524e1e613e29d9a7eadd"     
+    show Leasure = "ea4e56623bab524e1e613e29d9a7eadd"
+    show Travel  = "d13520d4dc3202c456c3a4047db19a90"
+    show Gas     = "7fee34a8555a5ad20603db6ad7a99d69"
+    show Other   = "13dab36f0d5c45f0bc86e3eeae3084a6"
+
         
-        
--- "http://akzeptanz.amex-services.de/suche.php?zip_code=12000&zip_hidden=&&within_a_distance_of=0&cityBerlin&city_selected=Berlin&agreement_code=&agreement_code_md5=&industry_code=&industry_code_md5=&firma=Mc&firma_pattern=&page=0"
 
 sampleURL :: Req
 sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
@@ -106,9 +131,6 @@ getResult res1 req@Req{..} f = do
   where 
         nextpage :: Req -> Req
         nextpage x@Req{..} = x { page = succ page }
-        
-        
-
                                   
 
 filterDist :: Int -> [Store] -> [Store]
@@ -116,7 +138,6 @@ filterDist dist = filter (lessDist dist)
   where lessDist :: Int -> Store -> Bool
         lessDist dist Store{..} = sdist <= dist
     
-
 
 table :: [Node] -> Maybe Store
 table row = do  name    <- row ^? ix 0 . elements . contents
@@ -131,6 +152,7 @@ table row = do  name    <- row ^? ix 0 . elements . contents
                     then return $ Store name (replace " " "" phone) (fromJust zip') city address (fromJust dist')
                     else  Nothing
 
+
 readInt' :: Text -> Maybe Int
 readInt' txt =
     let read = decimal txt
@@ -138,16 +160,16 @@ readInt' txt =
          Right (i, _ ) -> Just i
          Left _        -> Nothing
 
+
 stores' :: Response ByteString -> [Maybe Store]
 stores' = toListOf
             $ responseBody . to (decodeUtf8With lenientDecode)
             . html . allNamed (only "tr" ) . attributed (ix "class" . only "item")  . children . to table
 
-main :: IO ()
-main = do res <- getResult [] sampleURL $ f
-          print $ length res
+
+getExample :: IO ()
+getExample = do res <- getResult [] sampleURL $ f
+                mapM_ print res
   where
       f :: [Store] -> IO ()
       f = mapM_ print
-        
-someFunc = main

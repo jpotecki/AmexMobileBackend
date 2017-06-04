@@ -28,6 +28,7 @@ library
                      , wreq
                      , taggy
                      , either
+                     , aeson
   default-language:    Haskell2010
 
 executable AmexBackend-exe
@@ -36,6 +37,8 @@ executable AmexBackend-exe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , AmexBackend
+                     , aeson
+                     , bytestring
   default-language:    Haskell2010
 
 test-suite AmexBackend-test
