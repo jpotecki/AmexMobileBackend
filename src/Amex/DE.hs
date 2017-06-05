@@ -2,10 +2,11 @@
 
 module Amex.DE (getResult, getExample) where
 
+import Prelude hiding (init)
 import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
 import Data.ByteString          (isInfixOf)
-import Data.Text                (Text, unpack, toUpper, stripSuffix, strip, replace)
+import Data.Text                (Text, unpack, toUpper, stripSuffix, strip, replace, init)
 import Data.Text.Read           (decimal, Reader(..))
 import Data.Text.Encoding.Error (lenientDecode)
 import Data.Text.Lazy.Encoding  (decodeUtf8With)
@@ -61,7 +62,6 @@ instance Show Business where
     show Gas     = "7fee34a8555a5ad20603db6ad7a99d69"
     show Other   = "13dab36f0d5c45f0bc86e3eeae3084a6"
 
-        
 
 sampleURL :: Req
 sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
@@ -76,11 +76,10 @@ getResult' :: [Store] -> Req -> ([Store] -> IO a) -> IO [Store]
 getResult' acc req@Req{..} f = do
     content  <- get $ show req
     let res2 =  filterDist distance $ catMaybes . stores' $ content
-        diff =  res2 \\ acc
         uni' = acc `union` res2
-    f diff
-    if length diff == 0
-        then return $ uni'
+    f $ uni' \\ acc
+    if length uni' == length acc
+        then return uni'
         else getResult' uni' (nextpage req) f
   where 
         nextpage :: Req -> Req
@@ -103,7 +102,7 @@ table row = do  name    <- row ^? ix 0 . elements . contents
                 let dist' = stripSuffix "km" (strip dist) >>= \x -> readInt' $ strip x
                     zip'  = readInt' $ strip zip
                  in if isJust dist' && isJust zip' 
-                    then return $ Store name (replace " " "" phone) (fromJust zip') city address (fromJust dist')
+                    then return $ Store name (replace " " "" phone) (fromJust zip') (init city) address (fromJust dist')
                     else  Nothing
 
 

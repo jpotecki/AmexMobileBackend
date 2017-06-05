@@ -7,6 +7,7 @@ import Data.Text
 import Data.Aeson
 import GHC.Generics
 
+
 data Req = Req  { zip           :: Int
                 , city          :: Text
                 , page          :: Int
@@ -17,9 +18,11 @@ data Req = Req  { zip           :: Int
                 , name          :: Text
                 } deriving (Eq, Generic)
 
+
 instance ToJSON Req where
     toEncoding = genericToEncoding defaultOptions
 instance FromJSON Req
+
 
 data FPattern = Contain 
               | BeginWi 
@@ -28,7 +31,6 @@ data FPattern = Contain
 
 instance ToJSON FPattern where
   toEncoding = genericToEncoding defaultOptions
-
 instance FromJSON FPattern
 
 
@@ -42,7 +44,7 @@ data Business = All
               | Other 
               deriving (Eq, Generic)
 
+
 instance ToJSON Business where
   toEncoding = genericToEncoding defaultOptions
-
 instance FromJSON Business
