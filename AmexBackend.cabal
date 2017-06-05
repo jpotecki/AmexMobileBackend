@@ -15,12 +15,19 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
+  exposed-modules:     Amex.DE
+                     , Amex.Response
+                     , Amex.Request
+                     , Server.Spock
+                     , Serverless.AWSLambda
+                     , Server.WebsocketsApp
   build-depends:       base >= 4.7 && < 5
+                     , aeson
                      , text
                      , bytestring
                      , xml-conduit
                      , http-conduit
+                     , http-types
                      , html-conduit
                      , taggy-lens
                      , lens
@@ -28,7 +35,12 @@ library
                      , wreq
                      , taggy
                      , either
-                     , aeson
+                     , Spock
+                     , wai
+                     , wai-cors
+                     , wai-websockets
+                     , websockets
+                     , warp
   default-language:    Haskell2010
 
 executable AmexBackend-exe
@@ -37,8 +49,6 @@ executable AmexBackend-exe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , AmexBackend
-                     , aeson
-                     , bytestring
   default-language:    Haskell2010
 
 test-suite AmexBackend-test

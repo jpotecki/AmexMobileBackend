@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveGeneric #-}
 
-module Lib where
+module Amex.DE (getResult, getExample) where
 
 import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
@@ -18,45 +18,8 @@ import Data.List                (union, (\\))
 import Debug.Trace
 import GHC.Generics hiding (to)
 import Data.Aeson
-
-data Store = Store { sname   :: Text 
-                   , sphone  :: Text 
-                   , szip    :: Int 
-                   , scity   :: Text
-                   , saddress:: Text 
-                   , sdist   :: Int 
-                   } deriving (Eq, Generic, Show)
-
-instance ToJSON Store where
-    toEncoding = genericToEncoding defaultOptions
-instance FromJSON Store
-
-
-type Stores = [Store]
-
-
-data Req = Req  { zip           :: Int
-                , city          :: Text
-                , page          :: Int
-                , url           :: Text
-                , distance      :: Int
-                , firma_pattern :: FPattern
-                , business      :: Business
-                , name          :: Text
-                } deriving (Eq, Generic)
-
-instance ToJSON Req where
-    toEncoding = genericToEncoding defaultOptions
-instance FromJSON Req
-
-
-data FPattern = Contain 
-              | BeginWi 
-              deriving (Eq, Generic)
-
-
-instance ToJSON FPattern
-instance FromJSON FPattern
+import Amex.Response (Store(..))
+import Amex.Request
 
 
 instance Show FPattern where
@@ -88,20 +51,6 @@ instance Show Req where
            ] 
 
 
-data Business = All
-              | CarRent
-              | Hotel
-              | Food
-              | Leasure
-              | Travel
-              | Gas
-              | Other 
-              deriving (Eq, Generic)
-
-instance ToJSON Business
-instance FromJSON Business
-
-
 instance Show Business where
     show All     = ""
     show CarRent = "60753bc681d752341358cdbcc49c008b"
@@ -117,17 +66,22 @@ instance Show Business where
 sampleURL :: Req
 sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
 
+getResult :: Req                 -- request which should be executed
+          -> ([Store] -> IO a)   -- applied to each partial result
+          -> IO [Store]          -- resulting list of all stores
+-- ^ recursivly polling the store results, the function f is called on all `new` results
+getResult req f = getResult' [] req f
 
-getResult :: [Store] -> Req -> ([Store] -> IO a) -> IO [Store]
-getResult res1 req@Req{..} f = do
+getResult' :: [Store] -> Req -> ([Store] -> IO a) -> IO [Store]
+getResult' acc req@Req{..} f = do
     content  <- get $ show req
     let res2 =  filterDist distance $ catMaybes . stores' $ content
-        diff =  res2 \\ res1
-        uni' = res1 `union` res2
+        diff =  res2 \\ acc
+        uni' = acc `union` res2
     f diff
     if length diff == 0
         then return $ uni'
-        else getResult uni' (nextpage req) f
+        else getResult' uni' (nextpage req) f
   where 
         nextpage :: Req -> Req
         nextpage x@Req{..} = x { page = succ page }
@@ -168,7 +122,8 @@ stores' = toListOf
 
 
 getExample :: IO ()
-getExample = do res <- getResult [] sampleURL $ f
+-- ^ example function which will poll some results and print it
+getExample = do res <- getResult sampleURL $ f
                 mapM_ print res
   where
       f :: [Store] -> IO ()
