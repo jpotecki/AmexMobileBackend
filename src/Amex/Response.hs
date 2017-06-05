@@ -7,12 +7,12 @@ import GHC.Generics
 import Data.Text (Text)
 
 
-data Store = Store { sname   :: Text 
-                   , sphone  :: Text 
-                   , szip    :: Int 
-                   , scity   :: Text
-                   , saddress:: Text 
-                   , sdist   :: Int 
+data Store = Store { name   :: Text
+                   , phone  :: Text
+                   , zip    :: Int
+                   , city   :: Text
+                   , address:: Text
+                   , dist   :: Int
                    } deriving (Eq, Generic, Show)
 
 instance ToJSON Store where
