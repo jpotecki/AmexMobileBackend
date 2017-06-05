@@ -89,7 +89,7 @@ getResult' acc req@Req{..} f = do
 filterDist :: Int -> [Store] -> [Store]
 filterDist dist = filter (lessDist dist)
   where lessDist :: Int -> Store -> Bool
-        lessDist dist Store{..} = sdist <= dist
+        lessDist maxdist Store{..} = dist <= maxdist
     
 
 table :: [Node] -> Maybe Store
