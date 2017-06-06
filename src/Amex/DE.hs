@@ -99,7 +99,7 @@ table row = do  name    <- row ^? ix 0 . elements . contents
                 city    <- row ^? ix 3 . contents
                 address <- row ^? ix 3 . elements . contents
                 dist    <- row ^? ix 3 . elements . elements. contents
-                let dist' = stripSuffix "km" (strip dist) >>= \x -> readInt' $ strip x
+                let dist' = stripSuffix "km" (strip dist) >>= readInt' . strip
                     zip'  = readInt' $ strip zip
                  in if isJust dist' && isJust zip' 
                     then return $ Store name (replace " " "" phone) (fromJust zip') (init city) address (fromJust dist')
