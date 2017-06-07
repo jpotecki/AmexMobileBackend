@@ -25,14 +25,14 @@ instance ToJSON Req where
     toEncoding = genericToEncoding defaultOptions
 instance FromJSON Req where
   parseJSON = withObject "Req" $ \v -> do 
-    zip <-   v.: "zip"
-    city  <- v .: "city"
+    zip       <-   v.: "zip"
+    city      <- v .: "city"
     let page = 0
         url  = "http://akzeptanz.amex-services.de/suche.php"
-    distance <- v .: "distance"
+    distance      <- v .: "distance"
     firma_pattern <- v .: "firma_pattern"
-    business <- v .: "business"
-    name <-  v .: "name"
+    business      <- v .: "business"
+    name          <-  v .: "name"
     return Req{..}
 
 

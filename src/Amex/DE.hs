@@ -66,6 +66,9 @@ instance Show Business where
 sampleURL :: Req
 sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
 
+-- TODO: Do another request to the GoogleMaps API and get
+--       the actual distance to the user by using lat/lon
+
 getResult :: Req                 -- request which should be executed
           -> ([Store] -> IO a)   -- applied to each partial result
           -> IO [Store]          -- resulting list of all stores
