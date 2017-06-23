@@ -12,11 +12,13 @@ import qualified  Amex.DE                 as Amex
 import            Network.Wai
 import            Network.HTTP.Types.Status
 
+
+
 ws :: WS.ServerApp
 ws pending = do 
   conn <- WS.acceptRequest pending
   putStrLn "Connection via Websockets accepted"
-  WS.forkPingThread conn 1
+  WS.forkPingThread conn 50
   raw         <- WS.receiveData conn
   BS.putStrLn raw
   case (JSON.eitherDecodeStrict raw :: Either String Amex.Req) of
@@ -32,7 +34,11 @@ invalidRequest conn err = do
 
 handleValidConn :: WS.Connection -> Amex.Req -> IO ()
 handleValidConn conn req = do
-  Amex.getResult req (sendMSG' conn) >> WS.sendClose conn status200'
+  Amex.getResult req (sendMSG' conn)
+  return ()
+  -- WS.sendTextData conn status200'
+  -- WS.sendClose conn status200'
+  -- print "DONE"
  where
   status200' = statusMessage status200
   sendMSG' :: WS.Connection -> [Amex.Store] -> IO ()

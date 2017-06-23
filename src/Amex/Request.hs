@@ -14,10 +14,12 @@ data Req = Req  { zip           :: Int
                 , city          :: Text
                 , page          :: Int
                 , url           :: Text
-                , distance      :: Int
+                , distance      :: Double
                 , firma_pattern :: FPattern
                 , business      :: Business
                 , name          :: Text
+                , lat           :: Maybe Double
+                , lon           :: Maybe Double
                 } deriving (Eq, Generic)
 
 
@@ -32,7 +34,9 @@ instance FromJSON Req where
     distance      <- v .: "distance"
     firma_pattern <- v .: "firma_pattern"
     business      <- v .: "business"
-    name          <-  v .: "name"
+    name          <- v .: "name"
+    lat           <- v .:? "lat"
+    lon           <- v .:? "lon"
     return Req{..}
 
 

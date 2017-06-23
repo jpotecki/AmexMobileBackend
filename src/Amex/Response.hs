@@ -12,7 +12,7 @@ data Store = Store { name   :: Text
                    , zip    :: Int
                    , city   :: Text
                    , address:: Text
-                   , dist   :: Int
+                   , dist   :: Double
                    } deriving (Eq, Generic, Show)
 
 instance ToJSON Store where

@@ -18,11 +18,15 @@ library
   exposed-modules:     Amex.DE
                      , Amex.Response
                      , Amex.Request
+                     , Google.Distance
+                     , APIKey
                      , Server.Spock
                      , Serverless.AWSLambda
                      , Server.WebsocketsApp
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , lens-aeson
+                     , cgi
                      , text
                      , bytestring
                      , xml-conduit

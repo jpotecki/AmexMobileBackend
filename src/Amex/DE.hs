@@ -7,21 +7,27 @@ import Control.Lens             (to, only,(^?),ix, toListOf, (^.), makeLenses)
 import Data.ByteString.Lazy     (toStrict, ByteString)
 import Data.ByteString          (isInfixOf)
 import Data.Text                (Text, unpack, toUpper, stripSuffix, strip, replace, init)
-import Data.Text.Read           (decimal, Reader(..))
+import Data.Text.Read           (decimal, Reader(..), rational)
 import Data.Text.Encoding.Error (lenientDecode)
 import Data.Text.Lazy.Encoding  (decodeUtf8With)
 import Network.HTTP.Client      (Response)
 import Network.Wreq             (responseBody, get)
 import Text.Taggy               (Node)
 import Text.Taggy.Lens          (html, elements, children, contents, allNamed, attributed)
-import Data.Maybe               (catMaybes, isJust, fromJust)
+import Data.Maybe               (catMaybes, isJust, fromJust, isNothing)
 import Data.List                (union, (\\))
 import Debug.Trace
 import GHC.Generics hiding (to)
 import Data.Aeson
 import Amex.Response (Store(..))
 import Amex.Request
+import Google.Distance
+import Control.Concurrent (forkIO)
+import Network.CGI
+import Control.Monad (forM)
 
+type Lat = Double
+type Lon = Double
 
 instance Show FPattern where
     show Contain = "contain"
@@ -64,7 +70,7 @@ instance Show Business where
 
 
 sampleURL :: Req
-sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc"
+sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 20 BeginWi All "Mc" Nothing Nothing
 
 -- TODO: Do another request to the GoogleMaps API and get
 --       the actual distance to the user by using lat/lon
@@ -80,34 +86,60 @@ getResult' acc req@Req{..} f = do
     content  <- get $ show req
     let res2 =  filterDist distance $ catMaybes . stores' $ content
         uni' = acc `union` res2
-    f $ uni' \\ acc
+    -- fork a thread and handle the new data 
+    forkIO $ morePrecision (lat, lon) f $ uni' \\ acc
+    -- f $ uni' \\ acc
     if length uni' == length acc
         then return uni'
         else getResult' uni' (nextpage req) f
   where 
         nextpage :: Req -> Req
         nextpage x@Req{..} = x { page = succ page }
-                                  
 
-filterDist :: Int -> [Store] -> [Store]
+
+morePrecision :: (Maybe Lat, Maybe Lon) -> ([Store] -> IO a) -> [Store] -> IO ()
+morePrecision (lat, lon) f stores = 
+  if (isNothing lat || isNothing lon)
+    then f stores >> return ()
+    else forM stores updateStores >>= f >> return ()
+  where
+    updateStores :: Store -> IO Store
+    updateStores store = do
+      dist <- getDistance (fromJust lat, fromJust lon) store
+      print dist
+      case dist of 
+        Nothing -> return store 
+        Just  x -> return $ store { dist = x / 1000 }
+
+
+
+
+filterDist :: Double -> [Store] -> [Store]
 filterDist dist = filter (lessDist dist)
-  where lessDist :: Int -> Store -> Bool
+  where lessDist :: Double -> Store -> Bool
         lessDist maxdist Store{..} = dist <= maxdist
-    
+
+
 
 table :: [Node] -> Maybe Store
-table row = do  name    <- row ^? ix 0 . elements . contents
+table row = do  name    <- row ^? ix 0 . elements . contents 
                 phone   <- row ^? ix 1 . contents
                 zip     <- row ^? ix 2 . contents
                 city    <- row ^? ix 3 . contents
                 address <- row ^? ix 3 . elements . contents
                 dist    <- row ^? ix 3 . elements . elements. contents
-                let dist' = stripSuffix "km" (strip dist) >>= readInt' . strip
+                let dist' = stripSuffix "km" (strip dist) >>= readDouble' . strip
                     zip'  = readInt' $ strip zip
                  in if isJust dist' && isJust zip' 
                     then return $ Store name (replace " " "" phone) (fromJust zip') (init city) address (fromJust dist')
                     else  Nothing
 
+
+readDouble' :: Text -> Maybe Double
+readDouble' str =
+  case rational str of
+    Right (d, _) -> Just d
+    Left _       -> Nothing
 
 readInt' :: Text -> Maybe Int
 readInt' txt =
