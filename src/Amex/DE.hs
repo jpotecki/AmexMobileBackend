@@ -25,6 +25,9 @@ import Google.Distance
 import Control.Concurrent (forkIO)
 import Network.CGI
 import Control.Monad (forM)
+import           Control.Concurrent.Async
+
+
 
 type Lat = Double
 type Lon = Double
@@ -87,7 +90,8 @@ getResult' acc req@Req{..} f = do
     let res2 =  filterDist distance $ catMaybes . stores' $ content
         uni' = acc `union` res2
     -- fork a thread and handle the new data 
-    forkIO $ morePrecision (lat, lon) f $ uni' \\ acc
+    done <- async$ forkIO $ morePrecision (lat, lon) f $ uni' \\ acc
+    _ <- wait done
     -- f $ uni' \\ acc
     if length uni' == length acc
         then return uni'
@@ -106,7 +110,6 @@ morePrecision (lat, lon) f stores =
     updateStores :: Store -> IO Store
     updateStores store = do
       dist <- getDistance (fromJust lat, fromJust lon) store
-      print dist
       case dist of 
         Nothing -> return store 
         Just  x -> return $ store { dist = x / 1000 }

@@ -32,9 +32,8 @@ getReqURL (lat, lon) Store{..} =
    in T.unpack . T.concat $ [ url, "?origins=", origin, "&destinations=", destin
                             , "&units=", "metric" ]
 
+
 getDistance :: (Lat, Lon) -> Store -> IO (Maybe Double)
 getDistance origin store = do
   res <- get (getReqURL origin store)
-  print $ getReqURL origin store
-  --print res
   return $ res ^? responseBody . key "rows" . nth 0 . key "elements" . nth 0 . key "distance" . key "value" . _Double

@@ -1,6 +1,7 @@
 module Server.WebsocketsApp where
 
 import qualified  Network.WebSockets      as WS
+import qualified  Network.WebSockets.Connection      as WS
 import qualified  Data.ByteString.Lazy    as LBS
 import qualified  Data.ByteString         as BS  hiding (putStrLn)
 import qualified  Data.ByteString.Char8   as BS
@@ -11,14 +12,25 @@ import qualified  Amex.Response           as Amex
 import qualified  Amex.DE                 as Amex
 import            Network.Wai
 import            Network.HTTP.Types.Status
+import            Control.Concurrent.STM
+import            Control.Concurrent
+import           Control.Concurrent.Async
+import           Control.Exception.Safe
 
+
+
+
+
+data ChanMessage = Message [Amex.Store]
+                 | Close
+type StoreChan = TChan ChanMessage
 
 
 ws :: WS.ServerApp
 ws pending = do 
   conn <- WS.acceptRequest pending
   putStrLn "Connection via Websockets accepted"
-  WS.forkPingThread conn 50
+  WS.forkPingThread conn 1
   raw         <- WS.receiveData conn
   BS.putStrLn raw
   case (JSON.eitherDecodeStrict raw :: Either String Amex.Req) of
@@ -34,12 +46,30 @@ invalidRequest conn err = do
 
 handleValidConn :: WS.Connection -> Amex.Req -> IO ()
 handleValidConn conn req = do
-  Amex.getResult req (sendMSG' conn)
+  publisher <- atomically $ newTChan
+  forkIO $ nightsWatch publisher conn
+  Amex.getResult req (sendMSG' publisher)
+  -- atomically $ writeTChan publisher Close
+  _ <- WS.receiveDataMessage conn
   return ()
-  -- WS.sendTextData conn status200'
-  -- WS.sendClose conn status200'
-  -- print "DONE"
  where
-  status200' = statusMessage status200
-  sendMSG' :: WS.Connection -> [Amex.Store] -> IO ()
-  sendMSG' conn = mapM_ (\s -> WS.sendTextData conn $ JSON.encode s)
+  sendMSG' :: StoreChan -> [Amex.Store] -> IO ()
+  sendMSG' chan = \s -> atomically $ writeTChan chan $ Message s
+
+
+nightsWatch :: StoreChan -> WS.Connection -> IO ()
+nightsWatch chan conn = do
+  putStrLn ": Night gathers, and now my watch begins.."
+  done <- async $ watch chan conn
+  _ <- wait done
+  putStrLn  "...And now his watch is ended."
+ where
+  watch :: StoreChan -> WS.Connection -> IO ()
+  watch chan conn = do
+    msg <- atomically $ readTChan chan
+    case msg of
+      Message stores -> do let xs = map (WS.Text . JSON.encode) stores
+                            in WS.sendDataMessages conn xs
+                           mapM_ print stores
+                           watch chan conn
+      Close         -> return ()

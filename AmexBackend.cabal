@@ -25,6 +25,7 @@ library
                      , Server.WebsocketsApp
   build-depends:       base >= 4.7 && < 5
                      , aeson
+                     , async
                      , lens-aeson
                      , cgi
                      , text
@@ -40,6 +41,8 @@ library
                      , taggy
                      , either
                      , Spock
+                     , safe-exceptions
+                     , stm
                      , wai
                      , wai-cors
                      , wai-websockets
