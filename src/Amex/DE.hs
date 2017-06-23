@@ -80,22 +80,24 @@ sampleURL = Req 12627 "Berlin" 0 "http://akzeptanz.amex-services.de/suche.php" 2
 
 getResult :: Req                 -- request which should be executed
           -> ([Store] -> IO a)   -- applied to each partial result
-          -> IO [Store]          -- resulting list of all stores
+          -> ([Store] -> IO a) -- function applied after finishing
+          -> IO ()
 -- ^ recursivly polling the store results, the function f is called on all `new` results
-getResult req f = getResult' [] req f
+getResult req f g = getResult' [] req f g []
 
-getResult' :: [Store] -> Req -> ([Store] -> IO a) -> IO [Store]
-getResult' acc req@Req{..} f = do
+getResult' :: [Store] -> Req -> ([Store] -> IO a) -> ([Store] -> IO a) 
+           -> [Async ()] -> IO ()
+getResult' acc req@Req{..} f g asyncs = do
     content  <- get $ show req
     let res2 =  filterDist distance $ catMaybes . stores' $ content
         uni' = acc `union` res2
     -- fork a thread and handle the new data 
-    done <- async$ forkIO $ morePrecision (lat, lon) f $ uni' \\ acc
-    _ <- wait done
+    googleFunc <- async $ morePrecision (lat, lon) f $ uni' \\ acc
     -- f $ uni' \\ acc
     if length uni' == length acc
-        then return uni'
-        else getResult' uni' (nextpage req) f
+        then do mapM_ wait $ googleFunc : asyncs
+                g uni' >> return ()
+        else getResult' uni' (nextpage req) f g $ googleFunc : asyncs
   where 
         nextpage :: Req -> Req
         nextpage x@Req{..} = x { page = succ page }
@@ -160,8 +162,9 @@ stores' = toListOf
 
 getExample :: IO ()
 -- ^ example function which will poll some results and print it
-getExample = do res <- getResult sampleURL $ f
-                mapM_ print res
+getExample = getResult sampleURL g f
   where
       f :: [Store] -> IO ()
       f = mapM_ print
+      g :: [Store] -> IO ()
+      g = \_ -> return ()

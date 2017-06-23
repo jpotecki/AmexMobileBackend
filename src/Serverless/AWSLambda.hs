@@ -21,5 +21,4 @@ main = do
       putStrLn $ "Error was " ++ e
       exitFailure
     Right (r :: Amex.Req) -> do 
-        res <- Amex.getResult r (mapM_ print)
-        print $ length res
+        Amex.getResult r (mapM_ print) (\xs -> print $ length xs)

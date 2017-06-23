@@ -48,9 +48,9 @@ handleValidConn :: WS.Connection -> Amex.Req -> IO ()
 handleValidConn conn req = do
   publisher <- atomically $ newTChan
   forkIO $ nightsWatch publisher conn
-  Amex.getResult req (sendMSG' publisher)
-  -- atomically $ writeTChan publisher Close
+  Amex.getResult req (sendMSG' publisher) (\_ -> atomically $ writeTChan publisher Close)
   _ <- WS.receiveDataMessage conn
+  atomically $ writeTChan publisher Close
   return ()
  where
   sendMSG' :: StoreChan -> [Amex.Store] -> IO ()
