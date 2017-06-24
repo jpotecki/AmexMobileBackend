@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Server.WebsocketsApp where
 
 import qualified  Network.WebSockets      as WS
@@ -5,7 +7,7 @@ import qualified  Network.WebSockets.Connection      as WS
 import qualified  Data.ByteString.Lazy    as LBS
 import qualified  Data.ByteString         as BS  hiding (putStrLn)
 import qualified  Data.ByteString.Char8   as BS
-import qualified  Data.Text               as T          (pack)
+import qualified  Data.Text               as T          (pack, Text)
 import qualified  Data.Aeson              as JSON
 import qualified  Amex.Request            as Amex
 import qualified  Amex.Response           as Amex
@@ -72,4 +74,4 @@ nightsWatch chan conn = do
                             in WS.sendDataMessages conn xs
                            mapM_ print stores
                            watch chan conn
-      Close         -> return ()
+      Close         -> WS.sendClose conn ("Done" :: T.Text) >> return ()
