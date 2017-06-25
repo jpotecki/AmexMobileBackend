@@ -21,7 +21,7 @@ after_success:
   - docker login -e="$DOCKER_EMAIL" -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
   - export REPO=janosp/amexbackend
   - echo $TRAVIS_BRANCH
-  - echo $COMMIT
-  - docker build -f Dockerfile -t $REPO:$COMMIT .
+  - echo $TRAVIS_COMMIT
+  - docker build -f Dockerfile -t $REPO:$TRAVIS_COMMIT .
   - docker tag $REPO:$COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER 
   - docker push $REPO
