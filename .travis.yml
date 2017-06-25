@@ -23,5 +23,6 @@ after_success:
   - echo $TRAVIS_BRANCH
   - echo $TRAVIS_COMMIT
   - docker build -f Dockerfile -t $REPO:$TRAVIS_COMMIT .
+  - docker tag $REPO:latest $REPO:latest
   - docker tag $REPO:$TRAVIS_COMMIT $REPO:travis-$TRAVIS_BUILD_NUMBER 
   - docker push $REPO
