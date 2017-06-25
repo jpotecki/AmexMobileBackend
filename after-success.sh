@@ -6,8 +6,8 @@ IFS=$'\n\t'
 docker build -t amexbackend .
 
 # just push it as latest
-docker tag seat-travis-test $DOCKER_USERNAME/amexbackend 
-docker push $DOCKER_USERNAME/amexbackend
+docker tag latest janosp/amexbackend 
+docker push janosp/amexbackend
 
 # If this is not a pull request, update the branch's docker tag.
 #if [ $TRAVIS_PULL_REQUEST = 'false' ]; then
