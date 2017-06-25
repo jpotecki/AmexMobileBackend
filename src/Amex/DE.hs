@@ -25,7 +25,7 @@ import Google.Distance
 import Control.Concurrent (forkIO)
 import Network.CGI
 import Control.Monad (forM)
-import           Control.Concurrent.Async
+import Control.Concurrent.Async
 
 
 
