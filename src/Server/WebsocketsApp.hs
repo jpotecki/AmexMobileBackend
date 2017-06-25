@@ -16,8 +16,8 @@ import            Network.Wai
 import            Network.HTTP.Types.Status
 import            Control.Concurrent.STM
 import            Control.Concurrent
-import           Control.Concurrent.Async
-import           Control.Exception.Safe
+import            Control.Concurrent.Async
+import            Control.Exception.Safe
 
 
 

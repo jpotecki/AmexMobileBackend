@@ -6,7 +6,7 @@ module Server.Spock
     ) where
 
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class         (liftIO)
 import Web.Spock
 import Web.Spock.Config
 import Network.Wai.Middleware.Cors
