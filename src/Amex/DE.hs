@@ -17,14 +17,14 @@ import Text.Taggy.Lens          (html, elements, children, contents, allNamed, a
 import Data.Maybe               (catMaybes, isJust, fromJust, isNothing)
 import Data.List                (union, (\\))
 import Debug.Trace
-import GHC.Generics hiding (to)
+import GHC.Generics hiding      (to)
 import Data.Aeson
-import Amex.Response (Store(..))
+import Amex.Response            (Store(..))
 import Amex.Request
 import Google.Distance
-import Control.Concurrent (forkIO)
+import Control.Concurrent       (forkIO)
 import Network.CGI
-import Control.Monad (forM)
+import Control.Monad            (forM)
 import Control.Concurrent.Async
 
 
