@@ -15,7 +15,7 @@ import Control.Lens
 import Network.Wreq
 import Network.HTTP.Client      (Response, responseStatus)
 
-import APIKey
+-- import APIKey
 import Amex.Response
 
 type Lat = Double

@@ -19,7 +19,6 @@ library
                      , Amex.Response
                      , Amex.Request
                      , Google.Distance
-                     , APIKey
                      , Server.Spock
                      , Serverless.AWSLambda
                      , Server.WebsocketsApp
