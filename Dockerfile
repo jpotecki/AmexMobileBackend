@@ -1,13 +1,9 @@
-FROM haskell:8
+FROM debian:jessie
 
-COPY . /opt/AmexMobileBackend
+RUN apt-get update && apt-get install -y libcurl4-gnutls-dev libgmp-dev
 
-WORKDIR /opt/AmexMobileBackend
+COPY dist/AmexMobileBackend-exe /usr/local/bin/AmexMobileBackend
 
 EXPOSE 8080
 
-RUN stack setup
-
-RUN stack build
-
-CMD ["stack","exec","AmexMobileBackend-exe"]
+ENTRYPOINT ["/usr/local/bin/AmexMobileBackend"]
